@@ -19,7 +19,7 @@ You need the .NET 10 SDK and ffmpeg.
 
 ```powershell
 .\scripts\Get-Ffmpeg.ps1            # ffmpeg for x64 into .\ffmpeg; add -Architecture x64, arm64 for both
-dotnet build src\SpekZ          # add -p:Platform=arm64 for ARM64
+dotnet build src\SpekZ               # add -p:Platform=arm64 for ARM64
 dotnet test
 ```
 
@@ -57,11 +57,13 @@ Settings are saved in `%LOCALAPPDATA%\Spek-Z\settings.json`. If that file does n
 
 ### Inspecting a file
 
-- Move the pointer over the plot to read the time, frequency and spectral level. Arrow keys move the inspection cursor too.
+- Move the pointer over the plot to read the time, frequency and spectral level. Each value has a fixed-width, right-aligned field so changing digits do not move the zoom readout. The fields keep their space when the pointer leaves the plot. Arrow keys move the inspection cursor too.
 - The crosshair is visible only while Spectrum profile is enabled. The time, frequency and level readout still works with the profile off.
 - Hold Ctrl and scroll to zoom both time and frequency around the pointer. `+` and `-` zoom both axes around the center of the visible plot. The current image scales immediately. After zooming stops for 350 ms, the visible time range is analysed again in the background with more columns. The old image stays visible until its replacement is ready. The FFT size and frequency resolution stay unchanged. Press `R`, double-click the plot or use Reset zoom to restore the cached whole-file view immediately.
 - Drag horizontally to select a time passage. Shift+left/right selects with the keyboard. Escape clears the selection.
+- The coordinate/dB readout also shows zoom as a percentage. Matching axes use one value, such as `Zoom: 150%`. Different axes use `X: 150% / Y: 100%`, with X for time and Y for frequency. Reset zoom sits with the reference/profile controls. A small minimap appears to their right whenever either displayed zoom percentage is above 100%. It fits the available width and never exceeds the controls/readout block's height. Its rectangle marks the visible time and frequency ranges within the whole spectrogram. Click elsewhere in the minimap to recenter, or drag the rectangle to pan both axes without changing zoom or the selected passage. Left/right pan time; up/down pan frequency. Page Up and Page Down move by most of a time passage, and Home and End go to the track boundaries. A progress ring overlays the minimap during zoom refinement and disappears when it finishes. Refinement errors still appear as text.
 - Turn on Spectrum profile to see the passage's average spectral level. With no selection it covers the whole file. The profile averages linear power from the spectrogram's dB values and excludes silent and unfinished columns. It is not a calibrated power spectral density.
+- The profile caption includes the selected passage's start and end times, or says "Average spectral level of the whole track" when nothing is selected. This context no longer takes a separate footer row.
 - Turning Spectrum profile off clears the time passage and its highlight. The cutoff measurement then uses the whole track.
 - Cutoff marker looks for a sharp, sustained drop above 8 kHz in that profile. It reports the frequency and approximate drop in dB, not a source codec or bitrate. It may mark a deliberately filtered recording, and it may miss a transcode. It is not a real/fake verdict.
 - Reference lines has None and MP3 - LAME defaults. The dotted guides are nominal LAME 3.100 stereo CBR low-pass targets: 17.0 kHz for 128 kbps, 18.6 for 192, 19.7 for 256 and 20.5 for 320. These are not MP3 requirements. The actual transition depends on sample rate; other encoders, VBR, mono and custom filters can differ.

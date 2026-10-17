@@ -27,6 +27,12 @@ public sealed partial class SpekView
         Register(nameof(MaximumTime), typeof(double), 0.0, ViewportChanged);
     public static readonly DependencyProperty ReadoutTextProperty =
         Register(nameof(ReadoutText), typeof(string), "", null);
+    public static readonly DependencyProperty ReadoutTimeTextProperty =
+        Register(nameof(ReadoutTimeText), typeof(string), "", null);
+    public static readonly DependencyProperty ReadoutFrequencyTextProperty =
+        Register(nameof(ReadoutFrequencyText), typeof(string), "", null);
+    public static readonly DependencyProperty ReadoutLevelTextProperty =
+        Register(nameof(ReadoutLevelText), typeof(string), "", null);
 
     private CancellationTokenSource? profileRun;
     private int profileGeneration;
@@ -38,6 +44,7 @@ public sealed partial class SpekView
     private uint dragPointer;
     private Point? cursor;
     private bool settingViewport;
+    private (Point Root, double Time, double Frequency)? pendingWheelAnchor;
 
     public ReferenceLines ReferenceLines { get => (ReferenceLines)GetValue(ReferenceLinesProperty); set => SetValue(ReferenceLinesProperty, value); }
     public bool ShowCutoffMarker { get => (bool)GetValue(ShowCutoffMarkerProperty); set => SetValue(ShowCutoffMarkerProperty, value); }
@@ -49,13 +56,34 @@ public sealed partial class SpekView
     public double MinimumTime { get => (double)GetValue(MinimumTimeProperty); set => SetValue(MinimumTimeProperty, value); }
     // Zero selects the end of the file automatically. Time is measured in seconds.
     public double MaximumTime { get => (double)GetValue(MaximumTimeProperty); set => SetValue(MaximumTimeProperty, value); }
-    public string ReadoutText { get => (string)GetValue(ReadoutTextProperty); private set => SetValue(ReadoutTextProperty, value); }
+    public string ReadoutText
+    {
+        get => (string)GetValue(ReadoutTextProperty);
+        private set
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                ReadoutTimeText = "";
+                ReadoutFrequencyText = "";
+                ReadoutLevelText = "";
+            }
+            SetValue(ReadoutTextProperty, value);
+        }
+    }
+    public string ReadoutTimeText { get => (string)GetValue(ReadoutTimeTextProperty); private set => SetValue(ReadoutTimeTextProperty, value); }
+    public string ReadoutFrequencyText { get => (string)GetValue(ReadoutFrequencyTextProperty); private set => SetValue(ReadoutFrequencyTextProperty, value); }
+    public string ReadoutLevelText { get => (string)GetValue(ReadoutLevelTextProperty); private set => SetValue(ReadoutLevelTextProperty, value); }
 
     public SpectrumProfile? SpectrumProfile { get; private set; }
     public SpectralDrop? MeasuredDrop { get; private set; }
     public double SelectionStartSeconds => selectionStart * (info?.Duration ?? 0);
     public double SelectionEndSeconds => selectionEnd * (info?.Duration ?? 0);
     public bool HasSelection => selectionStart > 0 || selectionEnd < 1;
+    public double DurationSeconds => Math.Max(0, info?.Duration ?? 0);
+    public double NyquistFrequency => Math.Max(0, (info?.GetStream(Stream)?.SampleRate ?? 0) / 2.0);
+    public double TimeZoomFactor => DurationSeconds > 0 ? DurationSeconds / VisibleTimeRange.Span : 1;
+    public double FrequencyZoomFactor => info?.GetStream(Stream) is { SampleRate: > 0 } stream
+        ? stream.SampleRate / 2.0 / VisibleFrequencyRange.Span : 1;
 
     public FrequencyRange VisibleFrequencyRange
     {
@@ -96,11 +124,13 @@ public sealed partial class SpekView
 
     public void ResetZoom()
     {
+        pendingWheelAnchor = null;
         SetViewport(0, 0, 0, 0);
     }
 
     public void ZoomToTimeRange(double start, double end)
     {
+        pendingWheelAnchor = null;
         var range = new TimeRange(start, end);
         double duration = info?.Duration ?? 0;
         if (duration <= 0 || range.End > duration || range.Span < Math.Min(0.01, duration))
@@ -110,11 +140,24 @@ public sealed partial class SpekView
 
     public void ZoomToFrequencyRange(double minimum, double maximum)
     {
+        pendingWheelAnchor = null;
         var range = new FrequencyRange(minimum, maximum);
         double ceiling = (info?.GetStream(Stream)?.SampleRate ?? 0) / 2.0;
         if (ceiling <= 0 || range.Maximum > ceiling || range.Span < Math.Min(100, ceiling))
             throw new ArgumentOutOfRangeException(nameof(maximum), "The interval must fit the stream and span at least 100 Hz.");
         SetFrequencyRange(range.Minimum, range.Maximum);
+    }
+
+    public void PanTo(double timeSeconds, double frequencyHz)
+    {
+        pendingWheelAnchor = null;
+        if (!double.IsFinite(timeSeconds)) throw new ArgumentOutOfRangeException(nameof(timeSeconds));
+        if (!double.IsFinite(frequencyHz)) throw new ArgumentOutOfRangeException(nameof(frequencyHz));
+        if (DurationSeconds <= 0 || NyquistFrequency <= 0) return;
+        var time = VisibleTimeRange.PanTo(timeSeconds, DurationSeconds);
+        var frequency = VisibleFrequencyRange.PanTo(frequencyHz, NyquistFrequency);
+        if (time == VisibleTimeRange && frequency == VisibleFrequencyRange) return;
+        SetViewport(frequency.Minimum, frequency.Maximum, time.Start, time.End);
     }
 
     public void SelectTimeRange(double startSeconds, double endSeconds)
@@ -142,6 +185,7 @@ public sealed partial class SpekView
         PointerCanceled += (_, _) => CancelDrag();
         PointerCaptureLost += (_, _) => CancelDrag();
         PointerWheelChanged += OnZoomWheel;
+        LayoutUpdated += RestoreWheelAnchorAfterLayout;
         DoubleTapped += (_, _) => ResetZoom();
     }
 
@@ -241,9 +285,30 @@ public sealed partial class SpekView
         double frequency = VisibleFrequencyRange.FrequencyAt((point.Position.Y - plot.Top) / plot.Height);
         double time = VisibleTimeRange.TimeAt((point.Position.X - plot.Left) / plot.Width);
         double factor = Math.Pow(1.25, point.Properties.MouseWheelDelta / 120.0);
+        if (XamlRoot?.Content is { } root)
+            pendingWheelAnchor = (TransformToVisual(root).TransformPoint(point.Position), time, frequency);
         cursor = point.Position;
         ZoomView(factor, time, frequency);
         e.Handled = true;
+    }
+
+    private void RestoreWheelAnchorAfterLayout(object? sender, object args)
+    {
+        // Navigation chrome can move/shrink the plot after a wheel event. Preserve the data under the
+        // root-space pointer rather than letting that layout change move the zoom anchor.
+        var anchor = pendingWheelAnchor;
+        pendingWheelAnchor = null;
+        if (anchor is null || XamlRoot?.Content is not { } root || spectrogram is null) return;
+        var point = root.TransformToVisual(this).TransformPoint(anchor.Value.Root);
+        var plot = SpekRenderer.PlotRect(new Size(ActualWidth, ActualHeight));
+        if (!plot.Contains(point) || plot.Width <= 0 || plot.Height <= 0) return;
+        var time = VisibleTimeRange;
+        var frequency = VisibleFrequencyRange;
+        double start = Math.Clamp(anchor.Value.Time - (point.X - plot.Left) / plot.Width * time.Span, 0, DurationSeconds - time.Span);
+        double maximum = Math.Clamp(anchor.Value.Frequency + (point.Y - plot.Top) / plot.Height * frequency.Span,
+            frequency.Span, info!.GetStream(Stream)!.SampleRate / 2.0);
+        cursor = point;
+        SetViewport(maximum - frequency.Span, maximum, start, start + time.Span);
     }
 
     private void ZoomView(double factor, double? timeAnchor = null, double? frequencyAnchor = null)
@@ -262,6 +327,7 @@ public sealed partial class SpekView
 
     private bool HandleInspectionKey(KeyRoutedEventArgs e)
     {
+        pendingWheelAnchor = null;
         if (IsDown(VirtualKey.Control) || IsDown(VirtualKey.Menu) || IsDown(VirtualKey.LeftWindows) || IsDown(VirtualKey.RightWindows)) return false;
         switch (e.Key)
         {
@@ -319,8 +385,10 @@ public sealed partial class SpekView
         int x = Math.Clamp((int)(dataTime.FractionAt(time) * data.Columns), 0, data.Columns - 1);
         double nyquist = (info?.GetStream(Stream)?.SampleRate ?? 0) / 2.0;
         int bin = nyquist > 0 ? Math.Clamp((int)Math.Round(hz / nyquist * (data.Bins - 1)), 0, data.Bins - 1) : 0;
-        string level = data.HasColumn(x) ? $"{data.GetValue(x, bin):0.0} dB" : "not analysed yet";
-        ReadoutText = $"{(int)(time / 60)}:{time % 60:00.000}   {hz:0} Hz   {level}";
+        ReadoutTimeText = $"{(int)(time / 60)}:{time % 60:00.000}";
+        ReadoutFrequencyText = $"{hz:0} Hz";
+        ReadoutLevelText = data.HasColumn(x) ? $"{data.GetValue(x, bin):0.0} dB" : "not analysed yet";
+        ReadoutText = $"{ReadoutTimeText}   {ReadoutFrequencyText}   {ReadoutLevelText}";
     }
 
     private double FileFractionAt(double x, Rect plot) =>
@@ -336,6 +404,7 @@ public sealed partial class SpekView
 
     private void ResetProfile()
     {
+        pendingWheelAnchor = null;
         CancelProfile();
         SpectrumProfile = null;
         MeasuredDrop = null;

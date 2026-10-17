@@ -17,6 +17,15 @@ public readonly record struct TimeRange
     public double TimeAt(double fraction) => Start + Math.Clamp(fraction, 0, 1) * Span;
     public double FractionAt(double seconds) => (seconds - Start) / Span;
 
+    public TimeRange PanTo(double centre, double duration)
+    {
+        if (!double.IsFinite(centre)) throw new ArgumentOutOfRangeException(nameof(centre));
+        if (!double.IsFinite(duration) || duration <= 0) throw new ArgumentOutOfRangeException(nameof(duration));
+        double span = Math.Min(Span, duration);
+        double start = Math.Clamp(centre - span / 2, 0, duration - span);
+        return new TimeRange(start, start + span);
+    }
+
     public TimeRange Zoom(double factor, double anchor, double duration, double minimumSpan = 0.01)
     {
         if (!double.IsFinite(factor) || factor <= 0) throw new ArgumentOutOfRangeException(nameof(factor));

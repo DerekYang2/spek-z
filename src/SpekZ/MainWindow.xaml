@@ -107,48 +107,124 @@
             </AppBarButton>
         </CommandBar>
 
-        <Grid Grid.Row="2" Margin="16,4,16,8" ColumnSpacing="12">
+        <Grid Grid.Row="2" Margin="16,4,16,8" ColumnSpacing="16">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <ComboBox
-                x:Name="ReferenceLinesBox"
-                Width="184"
-                AutomationProperties.AutomationId="ReferenceLines"
-                Header="Reference lines"
-                SelectionChanged="ReferenceLines_Changed"
-                ToolTipService.ToolTip="Approximate LAME stereo CBR low-pass targets. Not bitrate detection.">
-                <ComboBoxItem Content="None" />
-                <ComboBoxItem Content="MP3 - LAME defaults" />
-            </ComboBox>
-            <CheckBox
-                x:Name="SpectrumToggle"
+            <StackPanel x:Name="NavigationContent" Spacing="8">
+                <Grid x:Name="InspectionControls" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Spacing="2">
+                        <TextBlock
+                            AutomationProperties.AutomationId="ReferenceLinesLabel"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="Reference lines" />
+                        <ComboBox
+                            x:Name="ReferenceLinesBox"
+                            Width="184"
+                            AutomationProperties.AutomationId="ReferenceLines"
+                            AutomationProperties.Name="Reference lines"
+                            SelectionChanged="ReferenceLines_Changed"
+                            ToolTipService.ToolTip="Approximate LAME stereo CBR low-pass targets. Not bitrate detection.">
+                            <ComboBoxItem Content="None" />
+                            <ComboBoxItem Content="MP3 - LAME defaults" />
+                        </ComboBox>
+                    </StackPanel>
+                    <CheckBox
+                        x:Name="SpectrumToggle"
+                        Grid.Column="1"
+                        VerticalAlignment="Bottom"
+                        AutomationProperties.AutomationId="ShowSpectrum"
+                        Checked="InspectionOption_Changed"
+                        Content="Spectrum profile"
+                        Unchecked="InspectionOption_Changed" />
+                    <CheckBox
+                        x:Name="CutoffToggle"
+                        Grid.Column="2"
+                        VerticalAlignment="Bottom"
+                        AutomationProperties.AutomationId="ShowCutoff"
+                        Checked="InspectionOption_Changed"
+                        Content="Cutoff marker"
+                        ToolTipService.ToolTip="Measure a sustained spectral drop in the selected passage. This does not prove a lossy source."
+                        Unchecked="InspectionOption_Changed" />
+                    <Button
+                        x:Name="ResetZoomButton"
+                        Grid.Column="3"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Bottom"
+                        AutomationProperties.AutomationId="ResetZoom"
+                        Click="ResetZoom_Click"
+                        Content="Reset zoom"
+                        ToolTipService.ToolTip="Reset time and frequency zoom (R or double-click the plot)" />
+                </Grid>
+                <Grid ColumnSpacing="8" HorizontalAlignment="Left">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        x:Name="ZoomReadout"
+                        MaxWidth="128"
+                        AutomationProperties.AutomationId="ZoomReadout"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="Zoom: 100%"
+                        TextWrapping="Wrap" />
+                    <UserControl
+                        x:Name="HoverReadout"
+                        Grid.Column="1"
+                        Width="208"
+                        DataContext="{x:Bind Spek, Mode=OneTime}"
+                        AutomationProperties.AutomationId="HoverReadout"
+                        AutomationProperties.Name="{Binding ReadoutText}"
+                        MinHeight="16"
+                        IsTabStop="False">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="64" />
+                                <ColumnDefinition Width="64" />
+                                <ColumnDefinition Width="64" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                AutomationProperties.AutomationId="TimeReadout"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{Binding ReadoutTimeText}"
+                                TextAlignment="Right" />
+                            <TextBlock
+                                Grid.Column="1"
+                                AutomationProperties.AutomationId="FrequencyReadout"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{Binding ReadoutFrequencyText}"
+                                TextAlignment="Right" />
+                            <TextBlock
+                                Grid.Column="2"
+                                AutomationProperties.AutomationId="LevelReadout"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{Binding ReadoutLevelText}"
+                                TextAlignment="Right"
+                                TextTrimming="CharacterEllipsis"
+                                ToolTipService.ToolTip="{Binding ReadoutLevelText}" />
+                        </Grid>
+                    </UserControl>
+                </Grid>
+            </StackPanel>
+            <spek:SpectrogramOverview
+                x:Name="Overview"
                 Grid.Column="1"
-                VerticalAlignment="Bottom"
-                AutomationProperties.AutomationId="ShowSpectrum"
-                Checked="InspectionOption_Changed"
-                Content="Spectrum profile"
-                Unchecked="InspectionOption_Changed" />
-            <CheckBox
-                x:Name="CutoffToggle"
-                Grid.Column="2"
-                VerticalAlignment="Bottom"
-                AutomationProperties.AutomationId="ShowCutoff"
-                Checked="InspectionOption_Changed"
-                Content="Cutoff marker"
-                ToolTipService.ToolTip="Measure a sustained spectral drop in the selected passage. This does not prove a lossy source."
-                Unchecked="InspectionOption_Changed" />
-            <Button
-                Grid.Column="3"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Bottom"
-                AutomationProperties.AutomationId="ResetZoom"
-                Click="ResetZoom_Click"
-                Content="Reset zoom"
-                ToolTipService.ToolTip="Reset time and frequency zoom (R or double-click the plot)" />
+                Height="Auto"
+                VerticalAlignment="Top"
+                Source="{x:Bind Spek, Mode=OneTime}" />
         </Grid>
 
         <Grid Grid.Row="3">
@@ -165,11 +241,6 @@
         </Grid>
 
         <StackPanel Grid.Row="4" Margin="16,4,16,8" Spacing="4">
-            <TextBlock
-                AutomationProperties.AutomationId="HoverReadout"
-                MinHeight="16"
-                Style="{ThemeResource CaptionTextBlockStyle}"
-                Text="{Binding ReadoutText, ElementName=Spek}" />
             <TextBlock
                 x:Name="InspectionStatus"
                 AutomationProperties.AutomationId="InspectionStatus"

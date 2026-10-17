@@ -58,7 +58,7 @@ public sealed partial class SpekView : UserControl
     public SpekView()
     {
         IsTabStop = true;
-        canvas = new CanvasControl { ClearColor = Microsoft.UI.Colors.Black };
+        canvas = new CanvasControl { ClearColor = Microsoft.UI.Colors.Black, UseSharedDevice = true };
         canvas.Draw += OnDraw;
         canvas.CreateResources += OnCreateResources;
         Content = canvas;
@@ -79,6 +79,7 @@ public sealed partial class SpekView : UserControl
     }
 
     public event EventHandler? AnalysisCompleted;
+    internal event EventHandler? OverviewInvalidated;
 
     public string? FilePath { get => (string?)GetValue(FilePathProperty); set => SetValue(FilePathProperty, value); }
 
@@ -215,6 +216,7 @@ public sealed partial class SpekView : UserControl
         view.spectrogram?.SetRangeAndPalette(view.Palette, view.LowerDb, view.UpperDb);
         view.refinement?.SetRangeAndPalette(view.Palette, view.LowerDb, view.UpperDb);
         view.canvas.Invalidate();
+        view.OverviewInvalidated?.Invoke(view, EventArgs.Empty);
     }
 
     private static void Redescribe(SpekView view)
@@ -246,6 +248,7 @@ public sealed partial class SpekView : UserControl
         resizeTimer.Stop();
         CancelProfile();
         CancelRefinement(clear: true);
+        OverviewInvalidated?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnXamlRootChanged(XamlRoot sender, XamlRootChangedEventArgs args) => resizeTimer.Start();
@@ -286,6 +289,7 @@ public sealed partial class SpekView : UserControl
         var token = (run = new CancellationTokenSource()).Token;
 
         spectrogram = null;
+        OverviewInvalidated?.Invoke(this, EventArgs.Empty);
         image?.Dispose();
         image = null;
         ResetProfile();
@@ -361,6 +365,7 @@ public sealed partial class SpekView : UserControl
         if (current != generation) return;
         IsAnalyzing = false;
         canvas.Invalidate();
+        OverviewInvalidated?.Invoke(this, EventArgs.Empty);
         _ = RefreshProfileAsync();
         ScheduleRefinement();
         AnalysisCompleted?.Invoke(this, EventArgs.Empty);
@@ -385,6 +390,7 @@ public sealed partial class SpekView : UserControl
     private void OnFrame(DispatcherQueueTimer sender, object args)
     {
         canvas.Invalidate();
+        OverviewInvalidated?.Invoke(this, EventArgs.Empty);
         if (!IsAnalyzing) frameTimer.Stop();
     }
 
@@ -408,16 +414,7 @@ public sealed partial class SpekView : UserControl
         }
 
         var current = spectrogram;
-        if (current is not null)
-        {
-            if (image is null || image.SizeInPixels.Width != current.Columns || image.SizeInPixels.Height != current.Bins)
-            {
-                image?.Dispose();
-                image = SpekRenderer.CreateSpectrogramBitmap(sender, current);
-                current.MarkAllDirty();
-            }
-            SpekRenderer.Upload(current, image);
-        }
+        UpdateOverviewBitmap(sender);
 
         // While a resize is pending, the previous image stretches to the new plot.
         if (HasTimeZoom && refinement is { } detail)
@@ -432,6 +429,30 @@ public sealed partial class SpekView : UserControl
         SpekRenderer.Draw(args.DrawingSession, sender.Size, CreateScene(), current is null ? null : image, VisibleColumns(), paletteImage,
             Interpolation, HasTimeZoom ? refinementImage : null, refinementRange, refinement?.ColumnsDone ?? 0);
         DrawInspection(args.DrawingSession, sender.Size);
+    }
+
+    private void UpdateOverviewBitmap(ICanvasResourceCreator creator)
+    {
+        if (spectrogram is not { } data) return;
+        if (image is null || image.SizeInPixels.Width != data.Columns || image.SizeInPixels.Height != data.Bins)
+        {
+            image?.Dispose();
+            image = SpekRenderer.CreateSpectrogramBitmap(creator, data);
+            data.MarkAllDirty();
+        }
+        SpekRenderer.Upload(data, image);
+    }
+
+    internal bool HasOverview => loaded && spectrogram is not null && DurationSeconds > 0;
+
+    internal void DrawOverview(CanvasDrawingSession drawing, ICanvasResourceCreator creator, Rect bounds)
+    {
+        if (!HasOverview || bounds.Width <= 0 || bounds.Height <= 0) return;
+        UpdateOverviewBitmap(creator);
+        if (image is null || spectrogram is null || spectrogram.ColumnsDone == 0) return;
+        int columns = Math.Min(spectrogram.ColumnsDone, spectrogram.Columns);
+        drawing.DrawImage(image, new Rect(bounds.X, bounds.Y, bounds.Width * columns / spectrogram.Columns, bounds.Height),
+            new Rect(0, 0, columns, spectrogram.Bins), 1, CanvasImageInterpolation.Linear);
     }
 
     private SpekScene CreateScene()
