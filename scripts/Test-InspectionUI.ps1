@@ -1,5 +1,5 @@
 #Requires -Version 7
-# Tests a running FluentSpek window with WinApp CLI 0.7+. FixturePath must exist in the selected target.
+# Tests a running Spek-Z window with WinApp CLI 0.7+. FixturePath must exist in the selected target.
 param(
     [Parameter(Mandatory)] [ValidateSet('sandbox', 'local')] [string] $Target,
     [Parameter(Mandatory)] [int] $AppPid,
@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 $previousWorkflow = $env:WINAPP_UI_WORKFLOW_ID
-$env:WINAPP_UI_WORKFLOW_ID = "fluentspek-test-$([guid]::NewGuid().ToString('N'))"
+$env:WINAPP_UI_WORKFLOW_ID = "spek-z-test-$([guid]::NewGuid().ToString('N'))"
 $scope = if ($Target -eq 'sandbox') { @('--on', 'sandbox') } else { @() }
 $results = [Collections.Generic.List[object]]::new()
 $screenshots = [Collections.Generic.List[string]]::new()
@@ -68,14 +68,14 @@ try {
     New-Item -ItemType Directory -Path $ArtifactDirectory -Force | Out-Null
     $windows = Ui @('list-windows', '--json') | ConvertFrom-Json
     $window = $windows | Where-Object className -eq 'WinUIDesktopWin32WindowClass' | Select-Object -First 1
-    if (-not $window) { throw 'No FluentSpek window in the selected target.' }
+    if (-not $window) { throw 'No Spek-Z window in the selected target.' }
     $script:hwnd = "$($window.hwnd)"
 
     Test-Ui 'Open the generated transcode' {
         Pick-File 'Open' $FixturePath
         Ui @('wait-for', 'SaveButton', '-p', 'IsEnabled', '--value', 'True', '-t', '10000')
         $opened = Ui @('list-windows', '--json') | ConvertFrom-Json
-        if (-not ($opened | Where-Object { $_.title -eq "$([IO.Path]::GetFileName($FixturePath)) - FluentSpek" })) {
+        if (-not ($opened | Where-Object { $_.title -eq "$([IO.Path]::GetFileName($FixturePath)) - Spek-Z" })) {
             throw 'The file picker did not open the requested fixture.'
         }
         Start-Sleep -Milliseconds 1000

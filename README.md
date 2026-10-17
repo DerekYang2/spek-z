@@ -1,6 +1,6 @@
-# FluentSpek
+# Spek-Z
 
-FluentSpek is a Fluent UI spectrogram analyser for Windows. It draws a spectrogram of an audio file as it decodes it.
+Spek-Z is a spectrogram analyser for Windows, built with WinUI 3. It draws a spectrogram of an audio file as it decodes it.
 
 Based on [Spek](https://github.com/alexkay/spek) and [spek-X](https://github.com/MikeWang000000/spek-X).
 
@@ -10,7 +10,7 @@ Based on [Spek](https://github.com/alexkay/spek) and [spek-X](https://github.com
 | --- | --- |
 | `src/Spek.Net` | Spek.NET. Decodes audio with ffmpeg and turns it into spectrogram columns. Has no UI and targets `net10.0`. |
 | `src/Spek.Net.WinUI` | Spek.NET.WinUI. The `SpekView` control, which draws the spectrogram with Win2D, and PNG export. |
-| `src/FluentSpek` | The standalone app. |
+| `src/SpekZ` | The standalone Spek-Z app. |
 | `tests/Spek.Net.Tests` | MSTest tests for Spek.NET. |
 
 ## Building
@@ -19,23 +19,23 @@ You need the .NET 10 SDK and ffmpeg.
 
 ```powershell
 .\scripts\Get-Ffmpeg.ps1            # ffmpeg for x64 into .\ffmpeg; add -Architecture x64, arm64 for both
-dotnet build src\FluentSpek          # add -p:Platform=arm64 for ARM64
+dotnet build src\SpekZ          # add -p:Platform=arm64 for ARM64
 dotnet test
 ```
 
-`Get-Ffmpeg.ps1` downloads an audio-only LGPL build of FFmpeg from [ffmpeg-audio](https://github.com/DerekYang2/ffmpeg-audio), about 8 MB instead of 130 MB for a full build, into `ffmpeg\win-x64` or `ffmpeg\win-arm64`, which git ignores. It checks each zip's SHA-256 against the hashes in the script. The app build copies `ffmpeg.exe`, its licenses and `BUILD.txt` to `ffmpeg\` next to `FluentSpek.exe`. To move to a newer ffmpeg-audio release, change the release tag and the two hashes in the script.
+`Get-Ffmpeg.ps1` downloads an audio-only LGPL build of FFmpeg from [ffmpeg-audio](https://github.com/DerekYang2/ffmpeg-audio), about 8 MB instead of 130 MB for a full build, into `ffmpeg\win-x64` or `ffmpeg\win-arm64`, which git ignores. It checks each zip's SHA-256 against the hashes in the script. The app build copies `ffmpeg.exe`, its licenses and `BUILD.txt` to `ffmpeg\` next to `Spek-Z.exe`. To move to a newer ffmpeg-audio release, change the release tag and the two hashes in the script.
 
-FluentSpek looks for ffmpeg in this order:
+Spek-Z looks for ffmpeg in this order:
 
 1. The path in its settings.
-2. `ffmpeg\ffmpeg.exe` or `ffmpeg.exe` next to `FluentSpek.exe`.
+2. `ffmpeg\ffmpeg.exe` or `ffmpeg.exe` next to `Spek-Z.exe`.
 3. `ffmpeg.exe` on `PATH`.
 
-The tests that run ffmpeg use `FLUENTSPEK_FFMPEG`, then `PATH`, and report inconclusive if neither has it.
+The tests that run ffmpeg use `SPEK_Z_FFMPEG`, then the old `FLUENTSPEK_FFMPEG` variable, then `PATH`. They report inconclusive if none has it.
 
-`scripts/Test-RefinementUI.ps1` checks a running FluentSpek window in Sandbox with a 20-second, 48 kHz audio fixture already open. Pass its guest process ID with `-AppPid` and a host evidence folder with `-ArtifactDirectory`. It checks centered zoom, reset, pointer-anchored wheel zoom and rapid zoom changes after background refinement. Results and screenshots go to the evidence folder. This script does not automate file pickers.
+`scripts/Test-RefinementUI.ps1` checks a running Spek-Z window in Sandbox with a 20-second, 48 kHz audio fixture already open. Pass its guest process ID with `-AppPid` and a host evidence folder with `-ArtifactDirectory`. It checks centered zoom, reset, pointer-anchored wheel zoom and rapid zoom changes after background refinement. Results and screenshots go to the evidence folder. This script does not automate file pickers.
 
-## Using FluentSpek
+## Using Spek-Z
 
 Open a file with the Open button, Ctrl+O, by dropping it on the window, or from the command line. The toolbar changes the palette, window function, FFT size, channel and stream, and Ctrl+S saves the view as a PNG.
 
@@ -53,7 +53,7 @@ With the spectrogram focused, Spek's keys work too. Each key steps forward, and 
 
 Settings (Ctrl+E) has the dB limits, the full path and detailed description options, and the ffmpeg path. Columns appear as soon as they're analysed, as in Spek and spek-X. There is no artificial reveal delay.
 
-Settings are saved in `%LOCALAPPDATA%\FluentSpek\settings.json`.
+Settings are saved in `%LOCALAPPDATA%\Spek-Z\settings.json`. If that file does not exist, Spek-Z loads the old `%LOCALAPPDATA%\FluentSpek\settings.json` file. Saving writes to the new location and leaves the old file intact.
 
 ### Inspecting a file
 
@@ -79,10 +79,10 @@ Whole-file views and light time zoom retain the existing fast analysis. At 4x ti
 ### Command line
 
 ```
-FluentSpek [FILE] [PNG] [WIDTH] [HEIGHT]
+Spek-Z [FILE] [PNG] [WIDTH] [HEIGHT]
 ```
 
-With a PNG path, FluentSpek saves the spectrogram at WIDTH × HEIGHT pixels (1000 × 600 by default) and exits without opening a window. It returns 0 on success and 1 if the file or ffmpeg can't be read. In spek-X, WIDTH and HEIGHT set the window size, so the PNG comes out smaller than the numbers you pass.
+With a PNG path, Spek-Z saves the spectrogram at WIDTH × HEIGHT pixels (1000 × 600 by default) and exits without opening a window. It returns 0 on success and 1 if the file or ffmpeg can't be read. In spek-X, WIDTH and HEIGHT set the window size, so the PNG comes out smaller than the numbers you pass.
 
 ## Releasing
 
@@ -95,7 +95,7 @@ The workflow runs the tests, checks that the tag matches the version, and pushes
 
 The workflow doesn't distribute portable app ZIPs. Microsoft Store packaging for the standalone app is a separate step. Local development builds still run as an unpackaged app.
 
-nuget.org uses Trusted Publishing, so the repository stores no API key. It needs a policy on nuget.org (your name > Trusted Publishing, with owner `DerekYang2`, repository `FluentSpek` and workflow `release.yml`) and a repository secret `NUGET_USER` that holds the nuget.org profile name.
+nuget.org uses Trusted Publishing, so the repository stores no API key. It needs a policy on nuget.org with owner `DerekYang2`, repository `spek-z` and workflow `release.yml`, plus a repository secret `NUGET_USER` that holds the nuget.org profile name. Update the policy's repository name after the GitHub rename before publishing another version.
 
 ## Differences from Spek
 

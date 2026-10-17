@@ -37,4 +37,4 @@ await Spectrogram.SaveAsync(@"C:\Temp\song.png");
 
 The control is written in C# with no XAML file, so there's no compiled XAML to merge into your app. It needs Windows App SDK 2.5.1 or later, Win2D 1.4.0, and an app built for x64 or ARM64.
 
-Licensed under GPL-3.0, like Spek. Source: https://github.com/DerekYang2/FluentSpek
+Licensed under GPL-3.0, like Spek. Source: https://github.com/DerekYang2/spek-z

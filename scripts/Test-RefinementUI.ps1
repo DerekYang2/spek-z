@@ -1,5 +1,5 @@
 #Requires -Version 7
-# Checks a Sandbox FluentSpek window with a 20-second, 48 kHz audio file already open.
+# Checks a Sandbox Spek-Z window with a 20-second, 48 kHz audio file already open.
 # Open the fixture before running this script. Native file-picker automation is deliberately excluded.
 param(
     [Parameter(Mandatory)] [int] $AppPid,
@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 $previousWorkflow = $env:WINAPP_UI_WORKFLOW_ID
-$env:WINAPP_UI_WORKFLOW_ID = "fluentspek-refinement-$([guid]::NewGuid().ToString('N'))"
+$env:WINAPP_UI_WORKFLOW_ID = "spek-z-refinement-$([guid]::NewGuid().ToString('N'))"
 $results = [Collections.Generic.List[object]]::new()
 $screenshots = [Collections.Generic.List[string]]::new()
 function Checked([string[]] $Arguments) {

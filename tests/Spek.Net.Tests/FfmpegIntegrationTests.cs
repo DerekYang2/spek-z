@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace Spek.Net.Tests;
 
-// These run the real ffmpeg. They find it through FLUENTSPEK_FFMPEG or PATH, and are inconclusive without it.
+// These run the real ffmpeg. They use SPEK_Z_FFMPEG, the old FLUENTSPEK_FFMPEG variable, or PATH.
 [TestClass]
 public sealed class FfmpegIntegrationTests
 {
@@ -12,7 +12,7 @@ public sealed class FfmpegIntegrationTests
     [ClassInitialize]
     public static void Setup(TestContext _)
     {
-        ffmpegPath = Ffmpeg.Find([Environment.GetEnvironmentVariable("FLUENTSPEK_FFMPEG")]);
+        ffmpegPath = Ffmpeg.Find([Environment.GetEnvironmentVariable("SPEK_Z_FFMPEG"), Environment.GetEnvironmentVariable("FLUENTSPEK_FFMPEG")]);
         folder = Path.Combine(Path.GetTempPath(), "Spek.Net.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
     }
@@ -238,7 +238,7 @@ public sealed class FfmpegIntegrationTests
 
     private static Ffmpeg RequireFfmpeg()
     {
-        if (ffmpegPath is null) Assert.Inconclusive("ffmpeg not found. Set FLUENTSPEK_FFMPEG or add ffmpeg to PATH.");
+        if (ffmpegPath is null) Assert.Inconclusive("ffmpeg not found. Set SPEK_Z_FFMPEG or add ffmpeg to PATH.");
         return new Ffmpeg(ffmpegPath);
     }
 

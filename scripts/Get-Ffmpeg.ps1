@@ -1,6 +1,6 @@
-# Downloads ffmpeg.exe from the ffmpeg-audio release into ffmpeg\win-<arch>\ in the repository. FluentSpek's build
-# copies it next to FluentSpek.exe when it's there, and CI points the tests at it.
-# ffmpeg-audio is an audio-only LGPL build of FFmpeg for FluentSpek and FluentDL: https://github.com/DerekYang2/ffmpeg-audio
+# Downloads ffmpeg.exe from the ffmpeg-audio release into ffmpeg\win-<arch>\ in the repository. Spek-Z's build
+# copies it next to Spek-Z.exe when it's there, and CI points the tests at it.
+# ffmpeg-audio is an audio-only LGPL build of FFmpeg for Spek-Z and FluentDL: https://github.com/DerekYang2/ffmpeg-audio
 param(
     [ValidateSet('x64', 'arm64')]
     [string[]] $Architecture = @('x64'),

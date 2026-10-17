@@ -27,10 +27,10 @@ jobs:
         run: ./scripts/Get-Ffmpeg.ps1 -Architecture x64
       - name: Run the tests
         env:
-          FLUENTSPEK_FFMPEG: ${{ github.workspace }}\ffmpeg\win-x64\ffmpeg.exe
+          SPEK_Z_FFMPEG: ${{ github.workspace }}\ffmpeg\win-x64\ffmpeg.exe
         run: dotnet test tests/Spek.Net.Tests/Spek.Net.Tests.csproj -c Release
       - name: Pack Spek.NET and Spek.NET.WinUI
-        run: dotnet pack FluentSpek.slnx -c Release -o artifacts
+        run: dotnet pack SpekZ.slnx -c Release -o artifacts
 
   build:
     name: App build (${{ matrix.platform }})
@@ -45,4 +45,4 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Build the app
-        run: dotnet build src/FluentSpek/FluentSpek.csproj -c Release -p:Platform=${{ matrix.platform }}
+        run: dotnet build src/SpekZ/SpekZ.csproj -c Release -p:Platform=${{ matrix.platform }}

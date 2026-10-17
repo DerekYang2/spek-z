@@ -24,7 +24,7 @@ jobs:
         run: ./scripts/Get-Ffmpeg.ps1 -Architecture x64
       - name: Run the tests
         env:
-          FLUENTSPEK_FFMPEG: ${{ github.workspace }}\ffmpeg\win-x64\ffmpeg.exe
+          SPEK_Z_FFMPEG: ${{ github.workspace }}\ffmpeg\win-x64\ffmpeg.exe
         run: dotnet test tests/Spek.Net.Tests/Spek.Net.Tests.csproj -c Release
 
   packages:
@@ -45,7 +45,7 @@ jobs:
             throw "The tag ${{ github.ref_name }} doesn't match version $version in Directory.Build.props."
           }
       - name: Pack Spek.NET and Spek.NET.WinUI
-        run: dotnet pack FluentSpek.slnx -c Release -o artifacts
+        run: dotnet pack SpekZ.slnx -c Release -o artifacts
       - uses: actions/upload-artifact@v7
         with:
           name: packages

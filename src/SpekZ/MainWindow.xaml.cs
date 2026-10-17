@@ -10,7 +10,7 @@ using Windows.Graphics;
 using Windows.Storage;
 using SpekView = Spek.Net.WinUI.SpekView;
 
-namespace FluentSpek;
+namespace SpekZ;
 
 public sealed partial class MainWindow : Window
 {

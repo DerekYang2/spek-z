@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml;
 using Spek.Net;
 using Spek.Net.WinUI;
 
-namespace FluentSpek;
+namespace SpekZ;
 
 public partial class App : Application
 {
@@ -38,7 +38,7 @@ public partial class App : Application
         }
         if (commandLine.ShowVersion)
         {
-            Console.WriteLine($"FluentSpek {AppInfo.Version}");
+            Console.WriteLine($"{AppInfo.Name} {AppInfo.Version}");
             return 0;
         }
         if (commandLine.FilePath is null || commandLine.PngPath is null)
@@ -51,7 +51,7 @@ public partial class App : Application
         var ffmpegPath = AppSettings.FindFfmpeg(settings);
         if (ffmpegPath is null)
         {
-            Console.Error.WriteLine("FluentSpek: cannot find ffmpeg.");
+            Console.Error.WriteLine($"{AppInfo.Name}: cannot find ffmpeg.");
             return 1;
         }
 
@@ -72,14 +72,14 @@ public partial class App : Application
                 Path.GetFullPath(commandLine.PngPath), commandLine.Width, commandLine.Height, options);
             if (info.Error != AudioError.None)
             {
-                Console.Error.WriteLine($"FluentSpek: {SpekDescription.ErrorText(info.Error)}: {commandLine.FilePath}");
+                Console.Error.WriteLine($"{AppInfo.Name}: {SpekDescription.ErrorText(info.Error)}: {commandLine.FilePath}");
                 return 1;
             }
             return 0;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or COMException or FfmpegException)
         {
-            Console.Error.WriteLine($"FluentSpek: {e.Message}");
+            Console.Error.WriteLine($"{AppInfo.Name}: {e.Message}");
             return 1;
         }
     }

@@ -3,11 +3,11 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Spek.Net;
 
-namespace FluentSpek;
+namespace SpekZ;
 
 internal static class AppInfo
 {
-    public const string Name = "FluentSpek";
+    public const string Name = "Spek-Z";
 
     public static string Version { get; } =
         typeof(AppInfo).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "";
@@ -33,14 +33,18 @@ internal sealed class AppSettings
     public bool WindowMaximized { get; set; }
 
     private static string FilePath =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Spek-Z", "settings.json");
+
+    private static string LegacyFilePath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FluentSpek", "settings.json");
 
     public static AppSettings Load()
     {
         try
         {
-            if (!File.Exists(FilePath)) return new AppSettings();
-            var settings = JsonSerializer.Deserialize(File.ReadAllText(FilePath), AppSettingsContext.Default.AppSettings) ?? new AppSettings();
+            string path = File.Exists(FilePath) ? FilePath : LegacyFilePath;
+            if (!File.Exists(path)) return new AppSettings();
+            var settings = JsonSerializer.Deserialize(File.ReadAllText(path), AppSettingsContext.Default.AppSettings) ?? new AppSettings();
             settings.Normalize();
             return settings;
         }

@@ -56,7 +56,8 @@ public sealed partial class SpekView
             RefinementStatus = "Zoom refined.";
             return;
         }
-        if (spectrogram.Columns * time.Span / info.Duration >= columns * 0.95) return;
+        // Plenty of fast overview pixels are not a substitute for the detailed algorithm.
+        if (quality == AnalysisQuality.Fast && spectrogram.Columns * time.Span / info.Duration >= columns * 0.95) return;
         var ffmpegPath = string.IsNullOrEmpty(FfmpegPath) ? Ffmpeg.Find([]) : FfmpegPath;
         if (ffmpegPath is null) return;
         int version = refinementGeneration;
