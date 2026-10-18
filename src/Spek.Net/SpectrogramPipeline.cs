@@ -2,131 +2,125 @@ namespace Spek.Net;
 
 public delegate void ColumnHandler(int column, ReadOnlySpan<float> values);
 
-// Turns a stream of mono samples into spectrogram columns, the way Spek's pipeline does. Column i covers frames
-// [i * total / columns, (i + 1) * total / columns). Inside a column an FFT runs every n frames, without overlap,
-// over the last n frames. A column shorter than n still gets one FFT over the last n frames. The column's value
-// for each bin is the average of its FFTs, in dB.
+// Centred FFT windows on a file-anchored sample grid, independent of the display width. Each measurement
+// represents its nearest-centre time cell; pixels average overlapping cells in linear power, not dB.
 public sealed class SpectrogramPipeline
 {
-    private readonly int columns;
-    private readonly long totalFrames;
-    private readonly ColumnHandler onColumn;
+    private readonly long startFrame;
+    private readonly long endFrame;
     private readonly RealFft fft;
+    private readonly SpectrumColumns columns;
     private readonly float[] window;
     private readonly float[] ring;
     private readonly float[] input;
     private readonly float[] power;
-    private readonly float[] sum;
     private readonly int mask;
-
+    private readonly int leftCell;
+    private readonly int rightCell;
+    private long inputFrame;
+    private long centre;
+    private long outputEnd;
     private int ringPos;
-    private int column;
-    private long columnEnd;
-    private long frames;
-    private long framesInColumn;
-    private int ffts;
+    private bool completed;
 
     public SpectrogramPipeline(int fftBits, WindowFunction windowFunction, int columns, long totalFrames, ColumnHandler onColumn)
+        : this(fftBits, windowFunction, columns, totalFrames, onColumn, 0, 0) { }
+
+    public SpectrogramPipeline(int fftBits, WindowFunction windowFunction, int columns, long totalFrames,
+        ColumnHandler onColumn, long startFrame, int hopSize)
     {
         if (fftBits < SpekDefaults.MinFftBits || fftBits > SpekDefaults.MaxFftBits)
             throw new ArgumentOutOfRangeException(nameof(fftBits));
         if (columns <= 0) throw new ArgumentOutOfRangeException(nameof(columns));
         if (totalFrames < 0) throw new ArgumentOutOfRangeException(nameof(totalFrames));
+        if (startFrame < 0 || startFrame > long.MaxValue - totalFrames - (1 << fftBits))
+            throw new ArgumentOutOfRangeException(nameof(startFrame));
+        ArgumentNullException.ThrowIfNull(onColumn);
+        int size = 1 << fftBits;
+        HopSize = hopSize == 0 ? size / 16 : hopSize;
+        if (HopSize <= 0 || HopSize > size) throw new ArgumentOutOfRangeException(nameof(hopSize));
 
-        this.columns = columns;
-        this.totalFrames = totalFrames;
-        this.onColumn = onColumn;
+        this.startFrame = startFrame;
+        endFrame = startFrame + totalFrames;
+        outputEnd = endFrame;
+        leftCell = HopSize / 2;
+        rightCell = HopSize - leftCell;
+        centre = CentreFor(startFrame);
+        InputStartFrame = totalFrames == 0 ? startFrame : Math.Max(0, centre - size / 2);
+        InputEndFrame = totalFrames == 0 ? startFrame : CentreFor(endFrame - 1) + size / 2;
+        inputFrame = InputStartFrame;
         fft = new RealFft(fftBits);
-        window = WindowFunctions.Create(windowFunction, fft.Size);
-        ring = new float[fft.Size];
-        input = new float[fft.Size];
+        this.columns = new SpectrumColumns(columns, fft.Bins, totalFrames, startFrame, onColumn);
+        window = WindowFunctions.Create(windowFunction, size);
+        ring = new float[size];
+        input = new float[size];
         power = new float[fft.Bins];
-        sum = new float[fft.Bins];
-        mask = fft.Size - 1;
-        columnEnd = Boundary(1);
+        mask = size - 1;
     }
 
     public int Bins => fft.Bins;
+    public int ColumnsDone => columns.ColumnsDone;
+    public bool IsDone => columns.IsDone;
+    public int HopSize { get; }
+    public long InputStartFrame { get; }
+    public long InputEndFrame { get; }
+    public long MeasurementsDone { get; private set; }
 
-    public int ColumnsDone => column;
-
-    public bool IsDone => column >= columns;
-
-    // Supply preceding audio for the first FFT without including it in the column timestamps or averages.
+    // Optional prehistory before InputStartFrame. Normal file analysis supplies context through Push instead.
     public void Prime(ReadOnlySpan<float> samples)
     {
-        if (frames != 0 || column != 0) throw new InvalidOperationException("Prime the pipeline before pushing analysis samples.");
+        if (inputFrame != InputStartFrame || MeasurementsDone != 0 || completed)
+            throw new InvalidOperationException("Prime the pipeline before pushing analysis samples.");
+        foreach (float sample in samples) WriteRing(sample);
+    }
+
+    public void Push(ReadOnlySpan<float> samples) => Push(samples, CancellationToken.None);
+
+    public void Push(ReadOnlySpan<float> samples, CancellationToken cancellationToken)
+    {
+        if (completed || endFrame == startFrame) return;
         foreach (float sample in samples)
         {
-            ring[ringPos] = sample;
-            ringPos = (ringPos + 1) & mask;
+            if (IsDone || inputFrame >= InputEndFrame) return;
+            Consume(sample, cancellationToken);
         }
     }
 
-    public void Push(ReadOnlySpan<float> samples)
+    public void Complete() => Complete(CancellationToken.None);
+
+    public void Complete(CancellationToken cancellationToken)
     {
-        EndEmptyColumns();
-        foreach (float sample in samples)
+        if (completed) return;
+        cancellationToken.ThrowIfCancellationRequested();
+        completed = true;
+        // Pad only the final FFT context, not missing audio implied by an overestimated duration.
+        outputEnd = Math.Min(endFrame, inputFrame);
+        if (!IsDone && outputEnd > startFrame)
         {
-            if (column >= columns) return;
-
-            ring[ringPos] = sample;
-            ringPos = (ringPos + 1) & mask;
-            frames++;
-            framesInColumn++;
-
-            if (framesInColumn % fft.Size == 0) RunFft();
-            if (frames == columnEnd)
-            {
-                EndColumn();
-                EndEmptyColumns();
-            }
+            long lastCentre = CentreFor(outputEnd - 1);
+            while (centre <= lastCentre) Consume(0, cancellationToken);
         }
+        columns.Complete();
     }
 
-    // Call at the end of the stream. The duration that sets the column boundaries is an estimate, so the audio can
-    // end a few frames early. The column in progress is then finished with the frames it has.
-    public void Complete()
+    private long CentreFor(long frame) => (frame + leftCell) / HopSize * HopSize;
+
+    private void WriteRing(float sample)
     {
-        EndEmptyColumns();
-        if (column < columns && framesInColumn > 0) EndColumn();
+        ring[ringPos] = sample;
+        ringPos = (ringPos + 1) & mask;
     }
 
-    private long Boundary(int index) => index >= columns ? totalFrames : (long)((Int128)index * totalFrames / columns);
-
-    // With fewer frames than columns, several boundaries fall on the same frame.
-    private void EndEmptyColumns()
+    private void Consume(float sample, CancellationToken cancellationToken)
     {
-        while (column < columns && frames == columnEnd) EndColumn();
-    }
-
-    private void RunFft()
-    {
-        for (int i = 0; i < input.Length; i++)
-        {
-            input[i] = ring[(ringPos + i) & mask] * window[i];
-        }
-        fft.PowerDb(input, power);
-        for (int i = 0; i < sum.Length; i++)
-        {
-            sum[i] += power[i];
-        }
-        ffts++;
-    }
-
-    private void EndColumn()
-    {
-        if (ffts == 0) RunFft();
-        for (int i = 0; i < sum.Length; i++)
-        {
-            sum[i] /= ffts;
-        }
-        onColumn(column, sum);
-
-        Array.Clear(sum);
-        ffts = 0;
-        framesInColumn = 0;
-        column++;
-        columnEnd = Boundary(column + 1);
+        WriteRing(sample);
+        inputFrame++;
+        if (inputFrame != centre + fft.Size / 2) return;
+        cancellationToken.ThrowIfCancellationRequested();
+        for (int i = 0; i < input.Length; i++) input[i] = ring[(ringPos + i) & mask] * window[i];
+        fft.PowerLinear(input, power);
+        columns.Add(Math.Max(0, centre - leftCell), Math.Min(outputEnd, centre + rightCell), power);
+        MeasurementsDone++;
+        centre += HopSize;
     }
 }

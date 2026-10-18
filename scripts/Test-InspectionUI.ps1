@@ -1,5 +1,5 @@
 #Requires -Version 7
-# Tests a running FluentSpek window with WinApp CLI 0.7+. FixturePath must exist in the selected target.
+# Tests a running Spek-Z window with WinApp CLI 0.7+. FixturePath must exist in the selected target.
 param(
     [Parameter(Mandatory)] [ValidateSet('sandbox', 'local')] [string] $Target,
     [Parameter(Mandatory)] [int] $AppPid,
@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 $previousWorkflow = $env:WINAPP_UI_WORKFLOW_ID
-$env:WINAPP_UI_WORKFLOW_ID = "fluentspek-test-$([guid]::NewGuid().ToString('N'))"
+$env:WINAPP_UI_WORKFLOW_ID = "spek-z-test-$([guid]::NewGuid().ToString('N'))"
 $scope = if ($Target -eq 'sandbox') { @('--on', 'sandbox') } else { @() }
 $results = [Collections.Generic.List[object]]::new()
 $screenshots = [Collections.Generic.List[string]]::new()
@@ -68,14 +68,14 @@ try {
     New-Item -ItemType Directory -Path $ArtifactDirectory -Force | Out-Null
     $windows = Ui @('list-windows', '--json') | ConvertFrom-Json
     $window = $windows | Where-Object className -eq 'WinUIDesktopWin32WindowClass' | Select-Object -First 1
-    if (-not $window) { throw 'No FluentSpek window in the selected target.' }
+    if (-not $window) { throw 'No Spek-Z window in the selected target.' }
     $script:hwnd = "$($window.hwnd)"
 
     Test-Ui 'Open the generated transcode' {
         Pick-File 'Open' $FixturePath
         Ui @('wait-for', 'SaveButton', '-p', 'IsEnabled', '--value', 'True', '-t', '10000')
         $opened = Ui @('list-windows', '--json') | ConvertFrom-Json
-        if (-not ($opened | Where-Object { $_.title -eq "$([IO.Path]::GetFileName($FixturePath)) - FluentSpek" })) {
+        if (-not ($opened | Where-Object { $_.title -eq "$([IO.Path]::GetFileName($FixturePath)) - Spek-Z" })) {
             throw 'The file picker did not open the requested fixture.'
         }
         Start-Sleep -Milliseconds 1000
@@ -107,25 +107,24 @@ try {
     }
     Test-Ui 'Keyboard zoom changes the view, not the data' {
         Ui @('send-keys', 'vk=0xBB', '--target', 'Spectrogram', '--via', 'send-input')
-        Ui @('wait-for', 'InspectionStatus', '--value', 'Frequency view', '--contains', '-t', '3000')
+        Ui @('wait-for', 'ZoomReadout', '--value', 'Zoom: 150%', '-t', '3000')
         Screenshot '04-zoom.png'
         Ui @('invoke', 'ResetZoom')
-        $text = Ui @('get-value', 'InspectionStatus', '--json') | ConvertFrom-Json
-        if ($text.text -match 'Frequency view') { throw 'Reset zoom did not restore the full interval.' }
+        Ui @('wait-for', 'ZoomReadout', '--value', 'Zoom: 100%', '-t', '3000')
     }
     Test-Ui 'Dragging selects a time passage' {
         $plot = Element 'Spectrogram'
         $from = "$([int]($plot.x + 60 + ($plot.width - 152) * 0.2)),$([int]($plot.y + 60 + ($plot.height - 100) * 0.5))"
         $to = "$([int]($plot.x + 60 + ($plot.width - 152) * 0.7)),$([int]($plot.y + 60 + ($plot.height - 100) * 0.5))"
         Ui @('drag', $from, $to)
-        Ui @('wait-for', 'InspectionStatus', '--value', 'Passage', '--contains', '-t', '5000')
+        Ui @('wait-for', 'SpectrumProfile', '-p', 'Name', '--value', 'selected passage,', '--contains', '-t', '5000')
         Screenshot '05-passage.png'
     }
     Test-Ui 'Keyboard selection and clear' {
         Ui @('send-keys', 'esc', '--target', 'Spectrogram', '--via', 'send-input')
-        Ui @('wait-for', 'InspectionStatus', '--value', 'Using the whole track', '--contains', '-t', '3000')
+        Ui @('wait-for', 'SpectrumProfile', '-p', 'Name', '--value', 'Average spectral level of the whole track', '-t', '3000')
         Ui @('send-keys', 'shift+right', '--target', 'Spectrogram', '--via', 'send-input')
-        Ui @('wait-for', 'InspectionStatus', '--value', 'Passage', '--contains', '-t', '3000')
+        Ui @('wait-for', 'SpectrumProfile', '-p', 'Name', '--value', 'selected passage,', '--contains', '-t', '3000')
         Ui @('send-keys', 'esc', '--target', 'Spectrogram', '--via', 'send-input')
     }
     Test-Ui 'Save the inspected plot' {

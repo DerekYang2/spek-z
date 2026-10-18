@@ -35,9 +35,9 @@ public sealed class SpectrogramPipelineTests
     }
 
     [TestMethod]
-    public void ColumnsStartWhereTheirFramesStart()
+    public void CentredWindowsKeepTheToneChangeNearItsActualTime()
     {
-        // Silence for the first half, then a tone. Each column holds 2 FFTs, so the step falls on a column edge.
+        // A centred window can see the onset just before the boundary, but must not delay it by half a window.
         const int columns = 40, bin = 200;
         int total = columns * 2 * N;
         var samples = new float[total];
@@ -50,8 +50,8 @@ public sealed class SpectrogramPipelineTests
 
         for (int x = 0; x < columns; x++)
         {
-            if (x < columns / 2) Assert.IsTrue(peakLevel[x] < -200, $"column {x} should be silent but was {peakLevel[x]} dB");
-            else Assert.IsTrue(peakLevel[x] > -20, $"column {x} should hold the tone but was {peakLevel[x]} dB");
+            if (x < columns / 2 - 1) Assert.IsTrue(peakLevel[x] < -200, $"column {x} should be silent but was {peakLevel[x]} dB");
+            else if (x >= columns / 2) Assert.IsTrue(peakLevel[x] > -20, $"column {x} should hold the tone but was {peakLevel[x]} dB");
         }
     }
 
@@ -130,14 +130,16 @@ public sealed class SpectrogramPipelineTests
     public void PrimingSuppliesFftContextWithoutAdvancingColumns()
     {
         float[]? result = null;
-        var pipeline = new SpectrogramPipeline(8, WindowFunction.Hann, 1, 64, (_, values) => result = values.ToArray());
+        var pipeline = new SpectrogramPipeline(8, WindowFunction.Hann, 8, 256, (column, values) =>
+        {
+            if (column == 0) result = values.ToArray();
+        });
         var context = Enumerable.Repeat(1f, 256).ToArray();
         pipeline.Prime(context.AsSpan(0, 100));
         pipeline.Prime(context.AsSpan(100));
         Assert.AreEqual(0, pipeline.ColumnsDone);
-        pipeline.Push(context.AsSpan(0, 64));
-        pipeline.Complete();
-        Assert.AreEqual(1, pipeline.ColumnsDone);
+        pipeline.Push(context.AsSpan(0, 192));
+        Assert.IsTrue(pipeline.ColumnsDone > 0);
         Assert.IsNotNull(result);
         Assert.AreEqual(-6.0206, result[0], 0.1);
     }

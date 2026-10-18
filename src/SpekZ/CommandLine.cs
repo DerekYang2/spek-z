@@ -1,8 +1,8 @@
 using System.Globalization;
 
-namespace FluentSpek;
+namespace SpekZ;
 
-// spek's command line: FluentSpek [FILE] [PNG] [WIDTH] [HEIGHT]. With a PNG path, the spectrogram is saved and the app
+// spek's command line: Spek-Z [FILE] [PNG] [WIDTH] [HEIGHT]. With a PNG path, the spectrogram is saved and the app
 // exits. WIDTH and HEIGHT are the size of the image.
 internal sealed record CommandLine(string? FilePath, string? PngPath, int Width, int Height, bool ShowHelp, bool ShowVersion)
 {
@@ -10,7 +10,7 @@ internal sealed record CommandLine(string? FilePath, string? PngPath, int Width,
     public const int DefaultHeight = 600;
 
     public const string Help = """
-        Usage: FluentSpek [FILE] [PNG] [WIDTH] [HEIGHT]
+        Usage: Spek-Z [FILE] [PNG] [WIDTH] [HEIGHT]
 
           FILE      Audio file to analyse.
           PNG       Save the spectrogram to this PNG file and exit.

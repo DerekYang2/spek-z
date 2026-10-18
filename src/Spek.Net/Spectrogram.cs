@@ -99,8 +99,8 @@ public sealed class Spectrogram
         lock (gate) return values[x * Bins + bin];
     }
 
-    // Average linear power across a passage. Input columns contain Spek's averaged dB values, so this is a profile
-    // of the displayed analysis, not a calibrated power spectral density. Unfinished and silent columns are excluded.
+    // Average linear power across displayed columns. Fast columns retain the legacy dB average; detailed columns
+    // use time-weighted power averages. This is not calibrated PSD. Unfinished and silent columns are excluded.
     public SpectrumProfile GetProfile(int firstColumn, int endColumn, double sampleRate, CancellationToken cancellationToken = default)
     {
         if (firstColumn < 0 || firstColumn >= Columns) throw new ArgumentOutOfRangeException(nameof(firstColumn));

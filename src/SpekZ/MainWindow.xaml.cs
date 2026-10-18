@@ -10,7 +10,7 @@ using Windows.Graphics;
 using Windows.Storage;
 using SpekView = Spek.Net.WinUI.SpekView;
 
-namespace FluentSpek;
+namespace SpekZ;
 
 public sealed partial class MainWindow : Window
 {
@@ -49,6 +49,7 @@ public sealed partial class MainWindow : Window
         CutoffToggle.IsChecked = settings.ShowCutoffMarker;
         Spek.InspectionChanged += (_, _) => UpdateInspection();
         Spek.RegisterPropertyChangedCallback(SpekView.RefinementStatusProperty, (_, _) => UpdateInspection());
+        Overview.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => UpdateNavigationLayout());
         UpdateInspection();
 
         foreach (var property in new[]
@@ -64,7 +65,12 @@ public sealed partial class MainWindow : Window
         Closed += (_, _) => SaveSettings();
         if (filePath is not null) OpenFile(Path.GetFullPath(filePath));
         Root.Loaded += (_, _) => Spek.Focus(FocusState.Programmatic);
-        Root.SizeChanged += (_, _) => Profile.Height = Root.ActualHeight < 720 ? 140 : 180;
+        Root.SizeChanged += (_, _) =>
+        {
+            Profile.Height = Root.ActualHeight < 720 ? 140 : 180;
+            UpdateNavigationLayout();
+        };
+        NavigationContent.SizeChanged += (_, _) => UpdateNavigationLayout();
     }
 
     private void OpenFile(string path)
@@ -231,22 +237,18 @@ public sealed partial class MainWindow : Window
 
     private void UpdateInspection()
     {
+        double x = Math.Round(Spek.TimeZoomFactor * 100, 2);
+        double y = Math.Round(Spek.FrequencyZoomFactor * 100, 2);
+        ZoomReadout.Text = x == y ? $"Zoom: {x:0.##}%" : $"X: {x:0.##}% / Y: {y:0.##}%";
         Profile.Visibility = Spek.ShowSpectrum ? Visibility.Visible : Visibility.Collapsed;
+        Profile.Caption = Spek.HasSelection
+            ? $"Average spectral level of the selected passage, {Spek.SelectionStartSeconds:0.00} to {Spek.SelectionEndSeconds:0.00} s"
+            : "Average spectral level of the whole track";
         Profile.Profile = Spek.SpectrumProfile;
         Profile.FrequencyRange = Spek.VisibleFrequencyRange;
         Profile.MeasuredDrop = Spek.ShowCutoffMarker ? Spek.MeasuredDrop : null;
         var parts = new List<string>();
-        if (!string.IsNullOrEmpty(Spek.RefinementStatus)) parts.Add(Spek.RefinementStatus);
-        var time = Spek.VisibleTimeRange;
-        if (Spek.MinimumTime > 0 || Spek.MaximumTime > 0)
-            parts.Add($"Time view {time.Start:0.00} to {time.End:0.00} s");
-        var frequency = Spek.VisibleFrequencyRange;
-        if (Spek.MinimumFrequency > 0 || Spek.MaximumFrequency > 0)
-            parts.Add($"Frequency view {frequency.Minimum / 1000:0.00} to {frequency.Maximum / 1000:0.00} kHz");
-        if (Spek.HasSelection)
-            parts.Add($"Passage {Spek.SelectionStartSeconds:0.00} to {Spek.SelectionEndSeconds:0.00} s");
-        else if (Spek.ShowSpectrum || Spek.ShowCutoffMarker)
-            parts.Add("Using the whole track");
+        if (Spek.RefinementStatus.StartsWith("Zoom refinement failed", StringComparison.Ordinal)) parts.Add(Spek.RefinementStatus);
         if (Spek.ReferenceLines == ReferenceLines.Mp3Lame)
             parts.Add("Guides are nominal LAME stereo CBR low-pass targets, not universal MP3 boundaries.");
         if (Spek.ShowCutoffMarker)
@@ -257,6 +259,33 @@ public sealed partial class MainWindow : Window
             parts.Add("A cutoff does not prove lossy encoding; no marker does not prove lossless origin.");
         }
         InspectionStatus.Text = string.Join(" / ", parts);
+        InspectionStatus.Visibility = parts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void UpdateNavigationLayout()
+    {
+        if (Root.ActualWidth <= 0) return;
+        double available = Math.Max(0, Root.ActualWidth - 32);
+        bool showMap = Overview.Visibility == Visibility.Visible;
+        double referenceWidth = ReferenceLinesBox.Width;
+        double profileWidth = SpectrumToggle.DesiredSize.Width;
+        double cutoffWidth = CutoffToggle.DesiredSize.Width;
+        double resetWidth = ResetZoomButton.DesiredSize.Width;
+        double minimumMapSpace = showMap ? 96 : 0;
+        double controlsWidth = referenceWidth + profileWidth + cutoffWidth + resetWidth + 36;
+        bool wrapReset = controlsWidth + minimumMapSpace > available;
+        if (wrapReset) controlsWidth = referenceWidth + profileWidth + cutoffWidth + 24;
+        bool wrapOptions = wrapReset && controlsWidth + minimumMapSpace > available;
+        if (wrapOptions) controlsWidth = Math.Max(referenceWidth, resetWidth) + Math.Max(profileWidth, cutoffWidth) + 12;
+        controlsWidth = Math.Max(controlsWidth, ZoomReadout.MaxWidth + 8 + HoverReadout.Width);
+        Grid.SetRow(ResetZoomButton, wrapReset ? 1 : 0);
+        Grid.SetColumn(ResetZoomButton, wrapOptions ? 0 : wrapReset ? 1 : 3);
+        Grid.SetColumnSpan(ResetZoomButton, wrapReset && !wrapOptions ? 2 : 1);
+        Grid.SetRow(CutoffToggle, wrapOptions ? 1 : 0);
+        Grid.SetColumn(CutoffToggle, wrapOptions ? 1 : 2);
+        InspectionControls.RowSpacing = wrapReset ? 4 : 0;
+        Overview.Width = Math.Min(180, Math.Max(0, available - controlsWidth - 16));
+        Overview.Height = Math.Min(NavigationContent.ActualHeight, Overview.Width / 2.4);
     }
 
     private void RestorePlacement()

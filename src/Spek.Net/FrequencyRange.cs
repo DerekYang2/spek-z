@@ -19,6 +19,15 @@ public readonly record struct FrequencyRange
 
     public double FractionFromTop(double frequency) => (Maximum - frequency) / Span;
 
+    public FrequencyRange PanTo(double centre, double ceiling)
+    {
+        if (!double.IsFinite(centre)) throw new ArgumentOutOfRangeException(nameof(centre));
+        if (!double.IsFinite(ceiling) || ceiling <= 0) throw new ArgumentOutOfRangeException(nameof(ceiling));
+        double span = Math.Min(Span, ceiling);
+        double minimum = Math.Clamp(centre - span / 2, 0, ceiling - span);
+        return new FrequencyRange(minimum, minimum + span);
+    }
+
     public FrequencyRange Zoom(double factor, double anchor, double ceiling, double minimumSpan = 100)
     {
         if (!double.IsFinite(factor) || factor <= 0) throw new ArgumentOutOfRangeException(nameof(factor));

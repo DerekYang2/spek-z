@@ -3,7 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Spek.Net</RootNamespace>
     <PackageId>Spek.NET</PackageId>
-    <Description>Spek's spectrogram analysis for .NET. Decodes audio with ffmpeg and turns it into columns of dB values, one per pixel, with Spek's palettes, window functions and rulers.</Description>
+    <Description>Audio spectrogram analysis for .NET with fast overviews, optional dense FFT analysis, ffmpeg decoding, and Spek's palettes, window functions and rulers.</Description>
     <PackageTags>spek;spectrogram;spectrum;audio;fft;ffmpeg</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>

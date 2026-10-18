@@ -17,6 +17,7 @@ public sealed partial class SpectrumProfileView : UserControl
     private SpectrumProfile? profile;
     private FrequencyRange? frequencyRange;
     private SpectralDrop? measuredDrop;
+    private string caption = "Average spectral level of the whole track";
 
     public SpectrumProfileView()
     {
@@ -24,19 +25,30 @@ public sealed partial class SpectrumProfileView : UserControl
         canvas.Draw += Draw;
         Content = canvas;
         AutomationProperties.SetAutomationId(this, "SpectrumProfile");
-        AutomationProperties.SetName(this, "Average spectrum of the selected passage");
+        AutomationProperties.SetName(this, caption);
     }
 
     public SpectrumProfile? Profile { get => profile; set { profile = value; canvas.Invalidate(); } }
     public FrequencyRange? FrequencyRange { get => frequencyRange; set { frequencyRange = value; canvas.Invalidate(); } }
     public SpectralDrop? MeasuredDrop { get => measuredDrop; set { measuredDrop = value; canvas.Invalidate(); } }
+    public string Caption
+    {
+        get => caption;
+        set
+        {
+            if (caption == value) return;
+            caption = value ?? "";
+            AutomationProperties.SetName(this, caption);
+            canvas.Invalidate();
+        }
+    }
 
     private void Draw(CanvasControl sender, CanvasDrawEventArgs args)
     {
         var ds = args.DrawingSession;
         ds.Clear(Colors.Black);
         using var font = new CanvasTextFormat { FontFamily = "Segoe UI", FontSize = 11, WordWrapping = CanvasWordWrapping.NoWrap };
-        ds.DrawText("Average spectral level of the selected passage", 60, 4, Colors.White, font);
+        ds.DrawText(caption, 60, 4, Colors.White, font);
         if (profile is null || profile.IncludedColumns == 0)
         {
             ds.DrawText("Select a non-silent passage. Its spectrum appears when analysis finishes.", 60, 36, Colors.White, font);

@@ -60,6 +60,13 @@ internal sealed class RealFft
     // Writes 10 * log10(|X[k]|^2 / n^2) for k = 0 .. n/2, the same scale Spek uses.
     public void PowerDb(ReadOnlySpan<float> input, Span<float> output)
     {
+        PowerLinear(input, output);
+        for (int bin = 0; bin < Bins; bin++) output[bin] = 10f * MathF.Log10(output[bin]);
+    }
+
+    // Keep energy linear until the display column has combined all contributing measurements.
+    public void PowerLinear(ReadOnlySpan<float> input, Span<float> output)
+    {
         if (input.Length != size) throw new ArgumentException("Input length must equal the FFT size.", nameof(input));
         if (output.Length < Bins) throw new ArgumentException("Output is shorter than the number of bins.", nameof(output));
 
@@ -75,8 +82,8 @@ internal sealed class RealFft
         float n2 = (float)size * size;
         float dc = re[0] + im[0];
         float nyquist = re[0] - im[0];
-        output[0] = 10f * MathF.Log10(dc * dc / n2);
-        output[half] = 10f * MathF.Log10(nyquist * nyquist / n2);
+        output[0] = dc * dc / n2;
+        output[half] = nyquist * nyquist / n2;
 
         for (int k = 1; k < half; k++)
         {
@@ -91,7 +98,7 @@ internal sealed class RealFft
             float c = splitCos[k], s = splitSin[k];
             float xr = er + c * or + s * oi;
             float xi = ei + c * oi - s * or;
-            output[k] = 10f * MathF.Log10((xr * xr + xi * xi) / n2);
+            output[k] = (xr * xr + xi * xi) / n2;
         }
     }
 

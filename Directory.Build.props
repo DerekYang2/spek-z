@@ -1,15 +1,15 @@
 <Project>
   <PropertyGroup>
     <!-- One version for the packages and the app. The release tag must match this version. -->
-    <Version>0.2.0</Version>
+    <Version>0.3.0-preview.1</Version>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Authors>Derek Yang</Authors>
     <Copyright>Copyright (C) 2026 Derek Yang. Based on Spek and spek-X.</Copyright>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/DerekYang2/FluentSpek</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/DerekYang2/FluentSpek</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/DerekYang2/spek-z</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/DerekYang2/spek-z</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <IncludeSymbols>true</IncludeSymbols>
