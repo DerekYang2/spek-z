@@ -1,4 +1,4 @@
-name: Store packages
+name: App packages
 
 on:
   workflow_dispatch:
@@ -6,7 +6,9 @@ on:
     paths:
       - '.github/workflows/store.yml'
       - 'scripts/Build-StorePackage.ps1'
-      - 'scripts/Test-StorePackage.ps1'
+      - 'scripts/Test-Package.ps1'
+      - 'scripts/Build-SideloadPackage.ps1'
+      - 'scripts/install_spekz.*'
       - 'scripts/Get-Ffmpeg.ps1'
       - 'Directory.Build.props'
       - 'SpekZ.slnx'
@@ -18,12 +20,13 @@ permissions:
 
 jobs:
   package:
-    name: Store MSIX (${{ matrix.architecture }})
+    name: ${{ matrix.channel }} (${{ matrix.architecture }})
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
         architecture: [x64, arm64]
+        channel: [Store, Sideload]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
@@ -47,15 +50,27 @@ jobs:
         shell: pwsh
         run: ./scripts/Get-Ffmpeg.ps1 -Architecture ${{ matrix.architecture }}
       - name: Build and validate an unsigned Store package
+        if: matrix.channel == 'Store'
         shell: pwsh
         run: ./scripts/Build-StorePackage.ps1 -Architecture ${{ matrix.architecture }} -OutputDirectory artifacts/store
+      - name: Build and validate an unsigned sideload ZIP
+        if: matrix.channel == 'Sideload'
+        shell: pwsh
+        run: ./scripts/Build-SideloadPackage.ps1 -Architecture ${{ matrix.architecture }} -OutputDirectory artifacts/sideload
       - uses: actions/upload-artifact@v7
+        if: matrix.channel == 'Store'
         with:
           name: Spek-Z-Store-${{ matrix.architecture }}
           path: artifacts/store/*.msix
           if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: matrix.channel == 'Sideload'
+        with:
+          name: Spek-Z-Sideload-${{ matrix.architecture }}
+          path: artifacts/sideload/*.zip
+          if-no-files-found: error
       - name: Submission instructions
         shell: pwsh
         run: |
-          'Download this unsigned MSIX and upload it in Partner Center for Spek-Z.' >> $env:GITHUB_STEP_SUMMARY
+          'Store artifacts are unsigned MSIX files for Partner Center. Sideload artifacts are unsigned ZIPs with an administrator-run installer for Windows 11.' >> $env:GITHUB_STEP_SUMMARY
           'This workflow does not install a certificate, create a release, or submit the app.' >> $env:GITHUB_STEP_SUMMARY

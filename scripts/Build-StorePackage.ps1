@@ -22,6 +22,6 @@ foreach ($arch in ($Architecture | Select-Object -Unique)) {
     $package = Join-Path $output "Spek-Z_${version}_${arch}.msix"
     & winapp package $project --arch $arch --no-sign --output $package
     if ($LASTEXITCODE -ne 0) { throw "The $arch Store build failed." }
-    & (Join-Path $PSScriptRoot 'Test-StorePackage.ps1') -Package $package -Architecture $arch
+    & (Join-Path $PSScriptRoot 'Test-Package.ps1') -Package $package -Architecture $arch -Channel Store
     Write-Host "Store upload artifact: $package"
 }
