@@ -11,8 +11,13 @@ $project = Join-Path $root 'src\SpekZ\SpekZ.csproj'
 $version = [version] $manifest.Package.Identity.Version
 if ($version.Major -lt 1 -or $version.Revision -ne 0) { throw 'Store package versions must have a positive major version and end in .0.' }
 if (-not (Get-Command winapp -ErrorAction SilentlyContinue)) { throw 'Install WinApp CLI 0.7.1 or later before packaging.' }
-$cliVersion = & winapp --version
-if ($LASTEXITCODE -ne 0 -or [version] $cliVersion.Trim() -lt [version] '0.7.1') { throw 'WinApp CLI 0.7.1 or later is required.' }
+$cliOutput = @(& winapp --version)
+if ($LASTEXITCODE -ne 0) { throw "WinApp CLI could not report its version: $($cliOutput -join ' ')" }
+$cliVersion = $cliOutput | ForEach-Object { "$($_)".Trim() } |
+    Where-Object { $_ -match '^\d+\.\d+\.\d+(?:\.\d+)?(?:[-+]\S+)?$' } | Select-Object -Last 1
+if (-not $cliVersion -or [version] ($cliVersion -split '[-+]')[0] -lt [version] '0.7.1') {
+    throw "WinApp CLI 0.7.1 or later is required. Output: $($cliOutput -join ' ')"
+}
 
 $output = [IO.Path]::GetFullPath($OutputDirectory)
 $null = New-Item -ItemType Directory $output -Force
