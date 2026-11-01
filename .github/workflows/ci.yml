@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     name: Spek.NET tests
@@ -46,3 +49,8 @@ jobs:
           dotnet-version: 10.0.x
       - name: Build the app
         run: dotnet build src/SpekZ/SpekZ.csproj -c Release -p:Platform=${{ matrix.platform }} -p:WindowsPackageType=None
+
+  packages:
+    name: App packages
+    needs: [tests, build]
+    uses: ./.github/workflows/store.yml

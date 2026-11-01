@@ -2,18 +2,7 @@ name: App packages
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - '.github/workflows/store.yml'
-      - 'scripts/Build-StorePackage.ps1'
-      - 'scripts/Test-Package.ps1'
-      - 'scripts/Build-SideloadPackage.ps1'
-      - 'scripts/install_spekz.*'
-      - 'scripts/Get-Ffmpeg.ps1'
-      - 'Directory.Build.props'
-      - 'SpekZ.slnx'
-      - 'src/**'
-      - 'artwork/**'
+  workflow_call:
 
 permissions:
   contents: read
@@ -32,6 +21,12 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
+      - name: Read the package version
+        id: version
+        shell: pwsh
+        run: |
+          $manifest = [xml](Get-Content src/SpekZ/Package.appxmanifest -Raw)
+          "version=$($manifest.Package.Identity.Version)" >> $env:GITHUB_OUTPUT
       - name: Download WinApp CLI 0.7.1
         shell: pwsh
         run: |
@@ -59,18 +54,26 @@ jobs:
         run: ./scripts/Build-SideloadPackage.ps1 -Architecture ${{ matrix.architecture }} -OutputDirectory artifacts/sideload
       - uses: actions/upload-artifact@v7
         if: matrix.channel == 'Store'
+        id: store-artifact
         with:
-          name: Spek-Z-Store-${{ matrix.architecture }}
-          path: artifacts/store/*.msix
+          path: artifacts/store/Spek-Z_${{ steps.version.outputs.version }}_${{ matrix.architecture }}.msix
+          archive: false
           if-no-files-found: error
+          retention-days: 7
       - uses: actions/upload-artifact@v7
         if: matrix.channel == 'Sideload'
+        id: sideload-artifact
         with:
-          name: Spek-Z-Sideload-${{ matrix.architecture }}
-          path: artifacts/sideload/*.zip
+          path: artifacts/sideload/Spek-Z_${{ steps.version.outputs.version }}_${{ matrix.architecture }}.zip
+          archive: false
           if-no-files-found: error
+          retention-days: 7
       - name: Submission instructions
         shell: pwsh
         run: |
-          'Store artifacts are unsigned MSIX files for Partner Center. Sideload artifacts are unsigned ZIPs with an administrator-run installer for Windows 11.' >> $env:GITHUB_STEP_SUMMARY
+          if ('${{ matrix.channel }}' -eq 'Store') {
+            '[Download the unsigned ${{ matrix.architecture }} Store MSIX](${{ steps.store-artifact.outputs.artifact-url }}) and upload it in Partner Center.' >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            '[Download the unsigned ${{ matrix.architecture }} sideload ZIP](${{ steps.sideload-artifact.outputs.artifact-url }}). Extract it and run install_spekz.cmd on Windows 11. It requests administrator permission but installs no certificate.' >> $env:GITHUB_STEP_SUMMARY
+          }
           'This workflow does not install a certificate, create a release, or submit the app.' >> $env:GITHUB_STEP_SUMMARY
