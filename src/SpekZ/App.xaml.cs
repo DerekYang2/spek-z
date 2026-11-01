@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
+using Microsoft.Windows.AppLifecycle;
 using Spek.Net;
 using Spek.Net.WinUI;
 
@@ -17,6 +18,15 @@ public partial class App : Application
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
         var commandLine = CommandLine.Parse(Environment.GetCommandLineArgs().Skip(1).ToArray());
+        var activation = AppInstance.GetCurrent().GetActivatedEventArgs();
+        if (activation.Kind == ExtendedActivationKind.File
+            && activation.Data is Windows.ApplicationModel.Activation.IFileActivatedEventArgs fileArgs
+            && fileArgs.Files.Count > 0)
+        {
+            // Explorer passes the file through activation, not ordinary command-line arguments.
+            commandLine = new CommandLine(fileArgs.Files[0].Path, null,
+                CommandLine.DefaultWidth, CommandLine.DefaultHeight, false, false);
+        }
         if (commandLine.ShowHelp || commandLine.ShowVersion || commandLine.PngPath is not null)
         {
             // Like spek, rendering to a PNG doesn't open a window. The exit code reports the result.

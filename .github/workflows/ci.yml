@@ -33,7 +33,7 @@ jobs:
         run: dotnet pack SpekZ.slnx -c Release -o artifacts
 
   build:
-    name: App build (${{ matrix.platform }})
+    name: Unpackaged app build (${{ matrix.platform }})
     strategy:
       fail-fast: false
       matrix:
@@ -45,4 +45,4 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Build the app
-        run: dotnet build src/SpekZ/SpekZ.csproj -c Release -p:Platform=${{ matrix.platform }}
+        run: dotnet build src/SpekZ/SpekZ.csproj -c Release -p:Platform=${{ matrix.platform }} -p:WindowsPackageType=None

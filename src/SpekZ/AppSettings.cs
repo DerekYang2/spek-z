@@ -67,7 +67,7 @@ internal sealed class AppSettings
     }
 
     // ffmpeg from the settings, then next to the app, then on PATH.
-    public static string? FindFfmpeg(AppSettings settings) => Ffmpeg.Find(
+    public static string? FindFfmpeg(AppSettings settings) => Ffmpeg.Find((string?[])
     [
         settings.FfmpegPath,
         Path.Combine(AppContext.BaseDirectory, "ffmpeg", "ffmpeg.exe"),

@@ -1,8 +1,8 @@
 """Export the Spek-Z icon to Windows assets and repository artwork.
 
 Run from any directory with Python 3.10 or newer:
-    python -m pip install -r Branding/requirements.txt
-    python Branding/export.py
+    python -m pip install -r artwork/requirements.txt
+    python artwork/export.py
 
 The app uses the checked-in exports. Python is not a build dependency.
 """
@@ -117,7 +117,7 @@ def preview():
             f'<div class="sizes">{samples}</div></section>'
         )
     (HERE / "preview.html").write_text(
-        '<!doctype html><html lang="en"><meta charset="utf-8"><title>Spek-Z branding</title>'
+        '<!doctype html><html lang="en"><meta charset="utf-8"><title>Spek-Z artwork</title>'
         "<style>body{font-family:Segoe UI,sans-serif;background:#29292d;margin:24px}"
         "section{padding:24px;margin-bottom:16px;border-radius:12px}"
         "h2{font-size:18px}.sizes{display:flex;align-items:center;gap:20px;margin-top:20px;flex-wrap:wrap}</style>"
@@ -133,7 +133,7 @@ def main():
     preview()
     for path in outputs:
         print(path.relative_to(ROOT))
-    print(f"Exported {len(outputs)} images. Preview: Branding/preview.html")
+    print(f"Exported {len(outputs)} images. Preview: artwork/preview.html")
 
 
 if __name__ == "__main__":

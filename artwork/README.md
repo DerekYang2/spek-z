@@ -9,11 +9,11 @@ unchanged; Spek-Z enlarges it and adds a magnifying glass with a spectrogram.
 From the repository root:
 
 ```powershell
-python -m pip install -r Branding/requirements.txt
-python Branding/export.py
+python -m pip install -r artwork/requirements.txt
+python artwork/export.py
 ```
 
-Open `Branding/preview.html` to check the icon sizes on light and dark backgrounds. Python is only needed to
+Open `artwork/preview.html` to check the icon sizes on light and dark backgrounds. Python is only needed to
 regenerate artwork, not to build or run Spek-Z.
 
 ## Exports

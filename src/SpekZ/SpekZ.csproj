@@ -8,13 +8,20 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\WindowIcon.ico</ApplicationIcon>
     <Platforms>x64;arm64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <PlatformTarget Condition="'$(Platform)' == 'arm64' Or '$(RuntimeIdentifier)' == 'win-arm64'">arm64</PlatformTarget>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Platform)' == 'arm64'">win-arm64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <UseWinUI>true</UseWinUI>
-    <!-- A portable exe, like spek-X: no MSIX, and the .NET and Windows App SDK runtimes ship next to it. -->
-    <WindowsPackageType>None</WindowsPackageType>
+    <!-- MSIX is the default. Explicit WindowsPackageType=None still supports the existing unpackaged build. -->
+    <WindowsPackageType Condition="'$(WindowsPackageType)' == ''">MSIX</WindowsPackageType>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+    <AppxAutoIncrementPackageRevision>false</AppxAutoIncrementPackageRevision>
+    <GenerateAppInstallerFile>false</GenerateAppInstallerFile>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <WindowsAppSDKSelfContained Condition="'$(WindowsPackageType)' != 'None'">false</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
     <IsPackable>false</IsPackable>
     <Product>Spek-Z</Product>
@@ -32,11 +39,18 @@
   <ItemGroup>
     <ProjectReference Include="..\Spek.Net.WinUI\Spek.Net.WinUI.csproj" />
   </ItemGroup>
-  <!-- Branding\export.py generates Assets from Branding\spek-z.svg. The window and title bar use these two;
-       the other images are the MSIX package logos. -->
-  <ItemGroup>
+  <!-- artwork\export.py generates Assets from artwork\spek-z.svg. -->
+  <ItemGroup Condition="'$(WindowsPackageType)' == 'None'">
     <Content Include="Assets\WindowIcon.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Square44x44Logo.targetsize-48_altform-unplated.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(WindowsPackageType)' != 'None'">
+    <AppxManifest Include="Package.appxmanifest" />
+    <Content Include="Assets\*.png;Assets\WindowIcon.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\LICENSE" Link="LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\artwork\spek-z.svg" Link="Assets\spek-z.svg" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <!-- scripts\Get-Ffmpeg.ps1 downloads ffmpeg for each architecture. Builds without it look for ffmpeg on PATH. -->
   <PropertyGroup>
@@ -47,4 +61,8 @@
     <None Include="$(FfmpegFolder)BUILD.txt" Link="ffmpeg\BUILD.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="$(FfmpegFolder)licenses\*.txt" Link="ffmpeg\licenses\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <Target Name="RequirePackagedFfmpeg" BeforeTargets="PrepareForBuild" Condition="'$(WindowsPackageType)' != 'None'">
+    <Error Condition="!Exists('$(FfmpegFolder)ffmpeg.exe') Or !Exists('$(FfmpegFolder)BUILD.txt') Or !Exists('$(FfmpegFolder)licenses\FFmpeg-LGPL-2.1.txt')"
+           Text="Packaged builds need FFmpeg and its license files. Run scripts\Get-Ffmpeg.ps1 for the target architecture first." />
+  </Target>
 </Project>
