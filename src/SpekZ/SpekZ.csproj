@@ -6,6 +6,7 @@
     <RootNamespace>SpekZ</RootNamespace>
     <AssemblyName>Spek-Z</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\WindowIcon.ico</ApplicationIcon>
     <Platforms>x64;arm64</Platforms>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Platform)' == 'arm64'">win-arm64</RuntimeIdentifier>
@@ -30,6 +31,12 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Spek.Net.WinUI\Spek.Net.WinUI.csproj" />
+  </ItemGroup>
+  <!-- Branding\export.py generates Assets from Branding\spek-z.svg. The window and title bar use these two;
+       the other images are the MSIX package logos. -->
+  <ItemGroup>
+    <Content Include="Assets\WindowIcon.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Square44x44Logo.targetsize-48_altform-unplated.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <!-- scripts\Get-Ffmpeg.ps1 downloads ffmpeg for each architecture. Builds without it look for ffmpeg on PATH. -->
   <PropertyGroup>

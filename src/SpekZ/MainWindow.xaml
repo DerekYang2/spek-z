@@ -22,7 +22,11 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TitleBar x:Name="AppTitleBar" Title="Spek-Z" />
+        <TitleBar x:Name="AppTitleBar" Title="Spek-Z">
+            <TitleBar.IconSource>
+                <ImageIconSource ImageSource="ms-appx:///Assets/Square44x44Logo.targetsize-48_altform-unplated.png" />
+            </TitleBar.IconSource>
+        </TitleBar>
 
         <CommandBar
             Grid.Row="1"

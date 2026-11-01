@@ -29,6 +29,7 @@ public sealed partial class MainWindow : Window
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "WindowIcon.ico"));
         RestorePlacement();
 
         Spek.BrandName = AppInfo.Name;
