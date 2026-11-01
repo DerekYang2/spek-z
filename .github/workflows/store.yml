@@ -1,0 +1,79 @@
+name: App packages
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: ${{ matrix.channel }} (${{ matrix.architecture }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [x64, arm64]
+        channel: [Store, Sideload]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Read the package version
+        id: version
+        shell: pwsh
+        run: |
+          $manifest = [xml](Get-Content src/SpekZ/Package.appxmanifest -Raw)
+          "version=$($manifest.Package.Identity.Version)" >> $env:GITHUB_OUTPUT
+      - name: Download WinApp CLI 0.7.1
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'winappcli-x64.zip'
+          Invoke-WebRequest 'https://github.com/microsoft/winappCli/releases/download/v0.7.1/winappcli-x64.zip' -OutFile $zip
+          $expected = 'd925d1e32cdc320b6d271f653fd2cd3c05b5d7558deb20d1b548bead77900fcf'
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+            throw 'WinApp CLI download failed its SHA-256 check.'
+          }
+          $tools = Join-Path $env:RUNNER_TEMP 'winappcli'
+          Expand-Archive $zip -DestinationPath $tools
+          $cli = Get-ChildItem $tools -Recurse -Filter winapp.exe | Select-Object -First 1
+          if (-not $cli) { throw 'The download does not contain winapp.exe.' }
+          $cli.DirectoryName >> $env:GITHUB_PATH
+      - name: Download FFmpeg
+        shell: pwsh
+        run: ./scripts/Get-Ffmpeg.ps1 -Architecture ${{ matrix.architecture }}
+      - name: Build and validate an unsigned Store package
+        if: matrix.channel == 'Store'
+        shell: pwsh
+        run: ./scripts/Build-StorePackage.ps1 -Architecture ${{ matrix.architecture }} -OutputDirectory artifacts/store
+      - name: Build and validate an unsigned sideload ZIP
+        if: matrix.channel == 'Sideload'
+        shell: pwsh
+        run: ./scripts/Build-SideloadPackage.ps1 -Architecture ${{ matrix.architecture }} -OutputDirectory artifacts/sideload
+      - uses: actions/upload-artifact@v7
+        if: matrix.channel == 'Store'
+        id: store-artifact
+        with:
+          path: artifacts/store/Spek-Z_${{ steps.version.outputs.version }}_${{ matrix.architecture }}.msix
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v7
+        if: matrix.channel == 'Sideload'
+        id: sideload-artifact
+        with:
+          path: artifacts/sideload/Spek-Z_${{ steps.version.outputs.version }}_${{ matrix.architecture }}.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+      - name: Submission instructions
+        shell: pwsh
+        run: |
+          if ('${{ matrix.channel }}' -eq 'Store') {
+            '[Download the unsigned ${{ matrix.architecture }} Store MSIX](${{ steps.store-artifact.outputs.artifact-url }}) and upload it in Partner Center.' >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            '[Download the unsigned ${{ matrix.architecture }} sideload ZIP](${{ steps.sideload-artifact.outputs.artifact-url }}). Extract it and run install_spekz.cmd on Windows 11. It requests administrator permission but installs no certificate.' >> $env:GITHUB_STEP_SUMMARY
+          }
+          'This workflow does not install a certificate, create a release, or submit the app.' >> $env:GITHUB_STEP_SUMMARY
